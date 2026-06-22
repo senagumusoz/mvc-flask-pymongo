@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: flask-app
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: 1
   selector:
     matchLabels:
       app: flask-app
@@ -14,19 +14,7 @@ spec:
     spec:
       containers:
         - name: flask-app
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          image: mvc-flask-pymongo:latest
+          imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: {{ .Values.service.port }}
-          livenessProbe:
-            httpGet:
-              path: /todos/
-              port: {{ .Values.service.port }}
-            initialDelaySeconds: 30
-            periodSeconds: 10
-          readinessProbe:
-            httpGet:
-              path: /todos/
-              port: {{ .Values.service.port }}
-            initialDelaySeconds: 20
-            periodSeconds: 10
+            - containerPort: 5000

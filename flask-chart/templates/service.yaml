@@ -3,10 +3,10 @@ kind: Service
 metadata:
   name: flask-app-service
 spec:
-  type: {{ .Values.service.type }}
+  type: NodePort
   selector:
     app: flask-app
   ports:
-    - port: {{ .Values.service.port }}
-      targetPort: {{ .Values.service.port }}
-      nodePort: {{ .Values.service.nodePort }}
+    - port: 5000
+      targetPort: 5000
+      nodePort: 30080

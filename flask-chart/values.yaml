@@ -3,9 +3,7 @@ replicaCount: 1
 image:
   repository: mvc-flask-pymongo
   tag: latest
-  pullPolicy: IfNotPresent
 
 service:
   type: NodePort
   port: 5000
-  nodePort: 30080
