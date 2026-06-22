@@ -1,73 +1,343 @@
-## Model Based Validator design for Flask (Python) and Mongo DB
-#### Model based custom validation for flask (python). Use Flask server and mongo db. Integrate with any SPA API development.  
-<p align="center">
-  <img width="340" height="160" src="https://miro.medium.com/max/1266/1*vB-cUmm1_dBBt-4JtL0u5g.jpeg">
-</p>
+# DevOps Case Study - Flask MongoDB Todo API
 
-### Create [virtual environment]('https://docs.python.org/3/library/venv.html) and install requirements 
-```sh
-pip install -r requirements.txt
+## Proje Hakkında
+
+Bu proje, MongoDB veritabanını kullanan Flask tabanlı bir REST API uygulamasıdır.
+
+Case çalışması kapsamında aşağıdaki teknolojiler kullanılmıştır:
+
+* Python 3.12
+* Flask
+* MongoDB
+* Docker
+* Docker Compose
+* Kubernetes (kind)
+* Azure DevOps CI Pipeline
+
+---
+
+# Proje Yapısı
+
+```text
+.
+├── Dockerfile
+├── docker-compose.yml
+├── requirements.txt
+├── src/
+│   ├── app.py
+│   ├── db_config.json
+│   ├── factory/
+│   └── models/
+└── hepapi_k8s/
+    ├── mongo-deployment.yaml
+    ├── mongo-service.yaml
+    ├── app-deployment.yaml
+    └── app-service.yaml
 ```
-### Configure Database
-#### From [db_config.json](src/db_config.json) configure datbase url, name, user and password 
+
+---
+
+# API Endpointleri
+
+| Metot  | Endpoint    | Açıklama            |
+| ------ | ----------- | ------------------- |
+| GET    | /todos/     | Tüm kayıtları getir |
+| GET    | /todos/{id} | Tek kayıt getir     |
+| POST   | /todos/     | Yeni kayıt oluştur  |
+| PUT    | /todos/{id} | Kayıt güncelle      |
+| DELETE | /todos/{id} | Kayıt sil           |
+
+---
+
+# Uygulamanın Lokal Çalıştırılması
+
+Virtual environment oluşturulur:
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+Gerekli paketler yüklenir:
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+Uygulama çalıştırılır:
+
+```bash
+cd src
+python app.py
+```
+
+---
+
+# Docker Kullanımı
+
+Docker image oluşturulur:
+
+```bash
+docker build -t mvc-flask-pymongo:latest .
+```
+
+Container çalıştırılır:
+
+```bash
+docker run -d \
+--name flask-app \
+-p 5001:5000 \
+mvc-flask-pymongo:latest
+```
+
+---
+
+# Docker Compose
+
+Flask uygulaması ve MongoDB aynı anda ayağa kaldırılır:
+
+```bash
+docker compose up -d --build
+```
+
+Container durumları kontrol edilir:
+
+```bash
+docker compose ps
+```
+
+API testi:
+
+```bash
+curl http://localhost:5001/todos/
+```
+
+Beklenen çıktı:
+
 ```json
- {
-   "db": {
-            "url" : "mongodb://localhost:27017/",
-            "name" :"db_name",  
-            "user" :"",
-            "password" :""
-    }
- }
-``` 
-
-## In model update collection name and desire fields name and fields type. For example see todo [model](src/models/todo.py) file
-#### From [model](src/models) folder write your individual model and configure db collection name, fields name and fields type
-#### Example
-##### In todo [model](src/models/todo.py) update collection name, fields name and fields type
-```py
-collection_name = 'todos'   # collection name
-fields = {   
-    "title"     : "string",
-    "body"      : "string",
-    "created"   : "datatime"
-} 
+[]
 ```
 
-##### Update required fields, optional fields from todo [model](src/models/todo.py)
-```py
-create_required_fields = []  # example create_required_fields = ["title", "body"]
-create_optional_fields = []  # example create_required_fields = ["created"]
-update_required_fields = []
-update_optional_fields = []
-```
-#### Example 
-```py
-create_required_fields = ["title", "body"] 
-create_optional_fields = []  
-update_required_fields = ["title", "body"]
-update_optional_fields = []
-```
-#### In [Database](src/factory/database.py) insert, find , find_by_id, update and delete methods are generalize methods.  
-#### Those methods are call from [model](src/models) 
-- `insert` method store data to database after confirm validation from model 
-- `find` method retries all data from mongo database 
-- `find_by_id` method retries back a single search data
-- `update` method store updated data to database with corresponding id 
-- and `delete` method delete data from database with corresponding id 
+Containerlar durdurulur:
 
-#### List of Todo Routes
-| Request | Endpoint |  Details |
-| --- | --- | --- |
-| `GET` | `http://127.0.0.1:5000/todos`| Get All|
-| `GET` | `http://127.0.0.1:5000/todos/todo_id`| Get Single Id|
-| `POST` | `http://127.0.0.1:5000/todos`| Insert One|
-| `PUT` | `http://127.0.0.1:5000/todos/todo_id`| Update One|
-| `DELETE` | `http://127.0.0.1:5000/todos/todo_id`| Delete One|
-
-- To see route list type cli `flask routes`
-
-### Lets run the App
-```sh
-python app.py 
+```bash
+docker compose down
 ```
+
+---
+
+# Docker Compose Yapısı
+
+Docker Compose içerisinde:
+
+* Flask Application Container
+* MongoDB Container
+* MongoDB Health Check
+
+tanımlanmıştır.
+
+MongoDB hazır olmadan Flask uygulamasının başlamaması sağlanmıştır.
+
+```yaml
+depends_on:
+  mongo:
+    condition: service_healthy
+```
+
+Bu sayede bağlantı hatalarının önüne geçilmiştir.
+
+---
+
+# Kubernetes Deployment
+
+Local Kubernetes ortamı için Kind kullanılmıştır.
+
+Cluster oluşturma:
+
+```bash
+kind create cluster --name hepapi-case
+```
+
+Docker image'ın cluster'a yüklenmesi:
+
+```bash
+kind load docker-image mvc-flask-pymongo:latest --name hepapi-case
+```
+
+Manifest dosyalarının uygulanması:
+
+```bash
+kubectl apply -f hepapi_k8s/
+```
+
+Pod kontrolü:
+
+```bash
+kubectl get pods
+```
+
+Beklenen çıktı:
+
+```text
+flask-app   Running
+mongo       Running
+```
+
+Servis kontrolü:
+
+```bash
+kubectl get svc
+```
+
+Port yönlendirme:
+
+```bash
+kubectl port-forward svc/flask-app-service 8077:5000
+```
+
+API testi:
+
+```bash
+curl http://localhost:8077/todos/
+```
+
+Beklenen çıktı:
+
+```json
+[]
+```
+
+---
+
+# Kubernetes Bileşenleri
+
+MongoDB:
+
+* mongo-deployment.yaml
+* mongo-service.yaml
+
+Flask Uygulaması:
+
+* app-deployment.yaml
+* app-service.yaml
+
+---
+
+# Azure DevOps CI Pipeline
+
+CI süreci Azure DevOps Classic Editor kullanılarak hazırlanmıştır.
+
+Pipeline akışı:
+
+1. Repository kaynak kodunun alınması
+2. Docker image oluşturulması
+3. Docker Compose ile servislerin ayağa kaldırılması
+4. Uygulamanın hazır olmasının beklenmesi
+5. API endpoint testinin gerçekleştirilmesi
+6. Ortamın temizlenmesi
+
+Kullanılan test scripti:
+
+```bash
+docker compose up -d --build
+
+docker compose ps
+
+sleep 60
+
+docker compose logs app --tail=50
+
+curl --retry 10 \
+     --retry-delay 5 \
+     --retry-connrefused \
+     --fail \
+     http://localhost:5001/todos/
+
+docker compose down
+```
+
+Pipeline'ın başarılı olması aşağıdaki koşulların sağlandığını göstermektedir:
+
+* Docker image başarıyla oluşturulmuştur.
+* Flask uygulaması ayağa kalkmıştır.
+* MongoDB başarıyla çalışmaktadır.
+* Flask ve MongoDB arasında bağlantı kurulmuştur.
+* `/todos/` endpoint'i başarılı şekilde cevap vermektedir.
+
+---
+
+# Karşılaşılan Problemler ve Çözümler
+
+## MongoDB Connection Refused
+
+İlk aşamada:
+
+```text
+localhost:27017 connection refused
+```
+
+hatası alınmıştır.
+
+Sebep:
+
+Docker içerisinde localhost adresi MongoDB containerını değil Flask containerını göstermektedir.
+
+Çözüm:
+
+```json
+mongodb://mongo:27017/
+```
+
+adresine geçilmiştir.
+
+---
+
+## MongoDB Timeout Hatası
+
+İlk Docker Compose testlerinde:
+
+```text
+ServerSelectionTimeoutError
+```
+
+hatası alınmıştır.
+
+Sebep:
+
+MongoDB tamamen ayağa kalkmadan Flask uygulamasının başlaması.
+
+Çözüm:
+
+MongoDB healthcheck tanımlanmış ve Flask uygulamasının MongoDB hazır olana kadar beklemesi sağlanmıştır.
+
+---
+
+## Kubernetes ImagePullBackOff
+
+Kubernetes ortamında MongoDB podu başlangıçta:
+
+```text
+ImagePullBackOff
+```
+
+durumuna düşmüştür.
+
+Sebep:
+
+Kind cluster'ın Docker Hub üzerinden image çekememesi.
+
+Çözüm:
+
+Image erişim problemi giderilmiş ve pod yeniden oluşturularak servis başarıyla çalıştırılmıştır.
+
+---
+
+# Sonuç
+
+Bu çalışma kapsamında:
+
+* Flask uygulaması Dockerize edilmiştir.
+* Docker Compose ile çoklu container mimarisi oluşturulmuştur.
+* Kubernetes üzerinde deployment gerçekleştirilmiştir.
+* Azure DevOps üzerinde CI Pipeline hazırlanmıştır.
+* Uygulama ve veritabanı entegrasyonu başarıyla test edilmiştir.
